@@ -1,0 +1,8 @@
+server:
+  servlet:
+    context-path: /MdpSpJpa
+springfox:
+  documentation:
+    swagger-ui:
+      enabled: true
+      base-url: /MdpSpJpa
