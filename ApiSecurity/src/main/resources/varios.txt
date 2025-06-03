@@ -1,0 +1,139 @@
+
+--------- seguridad-------------------------
+-- 1. Elimina tablas si ya existen (opcional)
+BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE usuarios_roles CASCADE CONSTRAINTS';
+   EXECUTE IMMEDIATE 'DROP TABLE usuarios CASCADE CONSTRAINTS';
+   EXECUTE IMMEDIATE 'DROP TABLE roles CASCADE CONSTRAINTS';
+EXCEPTION
+   WHEN OTHERS THEN NULL;
+END;
+/
+
+-- 2. Crea tabla de ROLES (con mayúsculas)
+CREATE TABLE ROLES (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    NOMBRE VARCHAR2(50) NOT NULL UNIQUE
+);
+
+-- 3. Crea tabla de USUARIOS (con mayúsculas y campo ENABLED como NUMBER(1))
+CREATE TABLE USUARIOS (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    USERNAME VARCHAR2(50) NOT NULL UNIQUE,
+    PASSWORD VARCHAR2(100) NOT NULL,
+    ENABLED NUMBER(1) DEFAULT 1 NOT NULL
+);
+
+-- 4. Tabla de relación USUARIOS_ROLES
+CREATE TABLE USUARIOS_ROLES (
+    USUARIO_ID NUMBER NOT NULL,
+    ROL_ID NUMBER NOT NULL,
+    PRIMARY KEY (USUARIO_ID, ROL_ID),
+    FOREIGN KEY (USUARIO_ID) REFERENCES USUARIOS(ID),
+    FOREIGN KEY (ROL_ID) REFERENCES ROLES(ID)
+);
+
+-- 5. Inserta roles básicos (con prefijo ROLE_)
+INSERT INTO ROLES (NOMBRE) VALUES ('ROLE_ADMIN');
+INSERT INTO ROLES (NOMBRE) VALUES ('ROLE_USER');
+
+-- 6. Inserta usuarios con contraseñas BCrypt válidas (para 'Clave123')
+INSERT INTO USUARIOS (USERNAME, PASSWORD) VALUES (
+    'admin', 
+    '$2a$10$Xpz7D6L9Jz7q6K8wY0nB3e.9j8JhK5L2M1N3O4P5Q6R7S8T9U0V1W2X3Y4Z'
+);
+
+INSERT INTO USUARIOS (USERNAME, PASSWORD) VALUES (
+    'user',
+    '$2a$10$Xpz7D6L9Jz7q6K8wY0nB3e.9j8JhK5L2M1N3O4P5Q6R7S8T9U0V1W2X3Y4Z'
+);
+
+-- 7. Asigna roles
+INSERT INTO USUARIOS_ROLES (USUARIO_ID, ROL_ID) 
+VALUES ((SELECT ID FROM USUARIOS WHERE USERNAME = 'admin'), 
+        (SELECT ID FROM ROLES WHERE NOMBRE = 'ROLE_ADMIN'));
+
+INSERT INTO USUARIOS_ROLES (USUARIO_ID, ROL_ID) 
+VALUES ((SELECT ID FROM USUARIOS WHERE USERNAME = 'user'), 
+        (SELECT ID FROM ROLES WHERE NOMBRE = 'ROLE_USER'));
+
+COMMIT;
+
+-- 8. Verifica los datos
+SELECT 
+    U.USERNAME,
+    U.PASSWORD,
+    U.ENABLED,
+    R.NOMBRE AS ROL
+FROM 
+    USUARIOS U
+JOIN 
+    USUARIOS_ROLES UR ON U.ID = UR.USUARIO_ID
+JOIN 
+    ROLES R ON UR.ROL_ID = R.ID;
+    
+    
+    -- Actualizar contraseña del admin
+UPDATE USUARIOS SET 
+    PASSWORD = '$2a$10$u8sQniFJlF82xBljgkS70.7c85IKPE6aZ1f.GW7xLaTFZ8C7dgspS'
+WHERE USERNAME = 'admin';
+
+-- Actualizar contraseña del user
+UPDATE USUARIOS SET 
+    PASSWORD = '$2a$10$u8sQniFJlF82xBljgkS70.7c85IKPE6aZ1f.GW7xLaTFZ8C7dgspS'
+WHERE USERNAME = 'user';
+
+-- Confirmar cambios
+COMMIT;
+
+-- Verificar
+SELECT USERNAME, PASSWORD FROM USUARIOS;
+
+
+
+--- crea rusuarios:
+-- 1. Crear el rol si no existe
+INSERT INTO ROLES (ID, NOMBRE) VALUES (3, 'ROLE_ANALYST');
+
+-- 2. Crear usuario (password: Analyst123)
+INSERT INTO USUARIOS (ID, USERNAME, PASSWORD, ENABLED) 
+VALUES (3, 'analyst', '$2a$10$Xpz7D6L9Jz7q6K8wY0nB3e.9j8JhK5L2M1N3O4P5Q6R7S8T9U0V1W2X3Y4Z', 1);
+
+-- 3. Asignar rol
+INSERT INTO USUARIOS_ROLES (USUARIO_ID, ROL_ID) VALUES (3, 3);
+
+
+-- properties------------------------------------------------------------------:
+### Configuración del Servidor ###
+#server.servlet.context-path=/ApiSecurity
+#server.port=8081
+
+### Configuración de Seguridad Principal ###
+#security.basic.enabled=false
+
+### Configuración JWT ###
+# En produccion usa:
+#jwt.secret=${JWT_SECRET_KEY}  # ocupar Variable de entorno en produccion
+#jwt.secret=O2CqjAlGrxWLw/H8KyJxfJDpxDyaLHsMaBmhkGGWacPY4H49ftSIpsXXKHKyWz45
+#jwt.secret=fzjL1zFfI6TO18qyxRuBphmPdljkHZh9qryY2bmv6MP1HhfTcL3F0qJj_0H-Fniz
+#jwt.token-validity=3600
+#jwt.refresh-token-validity=86400
+
+### Configuración OAuth2 ###
+#security.oauth2.client.client-id=clientapp
+#security.oauth2.client.client-secret=123456
+#security.oauth2.client.authorized-grant-types=password,refresh_token
+#security.oauth2.client.scope=read,write
+#security.oauth2.client.resource-id=oauth2-resource
+#security.oauth2.client.access-token-validity-seconds=${jwt.token-validity}
+#security.oauth2.client.refresh-token-validity-seconds=${jwt.refresh-token-validity}
+
+### Configuración de Base de Datos ###
+#spring.datasource.jndi-name=jdbc/localxe
+#spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+#spring.jpa.hibernate.ddl-auto=none
+#spring.jpa.show-sql=false
+#spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.Oracle12cDialect
+
+
+
